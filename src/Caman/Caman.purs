@@ -1,4 +1,25 @@
-module Caman where
+module Caman
+  ( RGB
+  , RGBA
+  , Channels
+  , Point
+  , CurvePoints
+  , ProcessFn
+  , ProcessPoint
+  , Processor(..)
+  , getPixelRelative
+  , getPixel
+  , putPixelRelative
+  , putPixel
+  , register
+  , Filter(..)
+  , Blender(..)
+  , Size
+  , LayerOption(..)
+  , Layer(..)
+  , render
+  )
+where
 
 import Prelude
 import Effect (Effect)
