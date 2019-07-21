@@ -1,6 +1,10 @@
 {
   "name": "purescript-camanjs",
   "homepage": "https://github.com/m3tti/purescript-camanjs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/m3tti/purescript-camanjs",
+  },
   "authors": [
     "Mathäus Sander <mathaeus.peter.sander@gmail.com>"
   ],
