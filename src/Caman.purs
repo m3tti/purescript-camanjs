@@ -49,9 +49,13 @@ type CurvePoints =
 type ProcessFn = Int -> ProcessPoint -> RGB -> Effect RGB
 
 data Processor 
-  = Processor 
+  = PointProcessor 
     { name :: String 
     , function :: ProcessFn
+    }
+  | Kernel
+    { name :: String
+    , matrix :: Array Int
     }
 
 foreign import registerImpl 
@@ -68,6 +72,16 @@ foreign import ppFunctionWrapper
 getPixelRelative :: ProcessPoint -> Point -> Effect RGBA
 getPixelRelative pp p = do 
   rgba <- ppFunctionWrapper pp "getPixelRelative" [show p.x, show p.y]
+  pure 
+    { red: fromMaybe 0 $ index rgba 0
+    , green: fromMaybe 0 $ index rgba 1
+    , blue: fromMaybe 0 $ index rgba 2
+    , alpha: fromMaybe 0 $ index rgba 3
+    }
+
+getPixel:: ProcessPoint -> Point -> Effect RGBA
+getPixel pp p = do 
+  rgba <- ppFunctionWrapper pp "getPixel" [show p.x, show p.y]
   pure 
     { red: fromMaybe 0 $ index rgba 0
     , green: fromMaybe 0 $ index rgba 1
@@ -99,23 +113,16 @@ putPixel pp p rgba = do
     ]
   pure unit
 
-type ProcessKernel =
-  { name :: String
-  , matrix :: Array Int
-  }
-
 foreign import processKernelImpl :: String -> Array Int -> Effect Unit
 
-processKernel :: ProcessKernel -> Effect Unit
-processKernel p = 
-  processKernelImpl p.name p.matrix
-
 register :: Processor -> Effect Unit
-register (Processor { name, function }) = 
+register (PointProcessor { name, function }) = 
   registerImpl name
     \pp adjust r g b -> do
       rgb <- function adjust pp { red: r, green: g, blue: b }
       pure [rgb.red, rgb.green, rgb.blue]
+register (Kernel { name, matrix }) =
+  processKernelImpl name matrix
 
 data Blender 
   = Normal
@@ -223,6 +230,17 @@ data LayerOption
   | CopyParent 
   | Opacity Int
 
+data Layer 
+  = Main 
+    { elementId :: String
+    , filters :: Array Filter
+    }
+  | NewLayer
+    { elementId :: String
+    , filters :: Array Filter
+    , layerOptions :: Array LayerOption
+    }
+
 convertLayerOptionArray :: LayerOption -> Array String
 convertLayerOptionArray = case _ of
   BlendingMode b -> ["setBlendingMode", show b]
@@ -233,10 +251,8 @@ convertLayerOptionArray = case _ of
 foreign import functionWrapper :: String -> Array (Array String) -> EffectFnAff Unit
 foreign import newLayerImpl :: String -> Array (Array String) -> Array (Array String) -> EffectFnAff Unit
 
-render :: String -> Array Filter -> Aff Unit
-render elid f = 
-  fromEffectFnAff $ functionWrapper elid $ map convertFilterArray f
-  
-newLayer :: String -> Array LayerOption -> Array Filter -> Aff Unit
-newLayer elid lo f =
-  fromEffectFnAff $ newLayerImpl elid (map convertLayerOptionArray lo) (map convertFilterArray f)
+render :: Layer -> Aff Unit
+render (Main { elementId, filters }) = 
+  fromEffectFnAff $ functionWrapper elementId $ map convertFilterArray filters
+render (NewLayer { elementId, filters, layerOptions }) = 
+  fromEffectFnAff $ newLayerImpl elementId (map convertLayerOptionArray layerOptions) (map convertFilterArray filters)
