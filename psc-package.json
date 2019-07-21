@@ -4,7 +4,10 @@
   "source": "https://github.com/purescript/package-sets.git",
   "depends": [
     "aff",
+    "console",
+    "effect",
     "prelude",
+    "psci-support",
     "strings"
   ]
 }
