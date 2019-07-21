@@ -1,0 +1,10 @@
+{
+  "name": "purescript-camanjs",
+  "set": "psc-0.13.2",
+  "source": "https://github.com/purescript/package-sets.git",
+  "depends": [
+    "aff",
+    "prelude",
+    "strings"
+  ]
+}
