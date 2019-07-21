@@ -1,0 +1,21 @@
+{
+  "name": "purescript-camanjs",
+  "homepage": "https://github.com/m3tti/purescript-camanjs",
+  "authors": [
+    "Mathäus Sander <mathaeus.peter.sander@gmail.com>"
+  ],
+  "description": "CamanJs wrapper for purescript",
+  "main": "",
+  "keywords": [
+    "imageprocessing",
+    "photo"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
