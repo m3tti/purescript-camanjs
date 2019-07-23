@@ -11,25 +11,14 @@ const chunk = function(array, size) {
 var constructFn = function(c) {
   return function(i) {
     var fn = i[0];
-    var args = i.slice(1);
+    var args = i.slice(1).map(eval);
+    console.log(fn)
+    console.log(args)
 
     if (fn === "channels") {
       c[fn].apply(c, [{ red: args[0], green: args[1], blue: args[2] }])
-
-    } else if (fn === "newLayer") {
-      var blending = args[0];
-      var as = args.slice(1);
-
-
     } else if (fn === "resize") {
       c[fn].apply(c, { width: args[0], height: args[1] })
-    } else if (fn === "curves") {
-      var channels = args[0]
-      var axis = args.slice(1)
-
-      console.log([channels, ...chunk(axis, 2)])
-
-      c[fn].apply(c, [channels, ...chunk(axis, 2)]) 
     } else {
       c[fn].apply(c, args);
     }
@@ -40,7 +29,7 @@ exports.processKernelImpl = function(name) {
   return function(matrix) {
     return function() {
       var c = Caman.Filter.register(name, function() {
-        this.processKernel(name + "K", matrix);
+        this.processKernel(name + "K", matrix.map(parseInt));
       });
       console.log(c);
     }

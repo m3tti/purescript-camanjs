@@ -1,7 +1,7 @@
 module Caman
   ( RGB
   , RGBA
-  , Channels
+  , Channels(..)
   , Point
   , CurvePoints
   , ProcessFn
@@ -31,12 +31,14 @@ import Data.Maybe (fromMaybe)
 
 foreign import data ProcessPoint :: Type
 
+--| Is used for defining red, green and blue values of a pixel
 type RGB =
   { red :: Int
   , green :: Int
   , blue :: Int
   }
 
+--| Is used for defining red, green, blue and alpha values for a pixel
 type RGBA = 
   { red :: Int
   , green :: Int
@@ -44,6 +46,7 @@ type RGBA =
   , alpha :: Int
   }
 
+--| Defining the channels of a pixel or image
 data Channels 
   = Red
   | Green
@@ -55,11 +58,13 @@ instance showChannels :: Show Channels where
     Green -> "g"
     Blue -> "b"
 
+--| Defining a point in a Curve Points type
 type Point =
   { x :: Int
   , y :: Int
   }
 
+--| Defining a bezier curve 
 type CurvePoints =
   { p0 :: Point
   , p1 :: Point
@@ -67,8 +72,20 @@ type CurvePoints =
   , p3 :: Point
   }
 
+--| Processor Function to modify a given point and its surrounding points
+--| The function has to return the modified pixel red, green and blue value
 type ProcessFn = Int -> ProcessPoint -> RGB -> Effect RGB
 
+--| Processors define the Categories of diffrent image functinalities
+--|
+--| PointProcessor 
+--|   is a processor which defines a function how to 
+--|   modify the pixel and its surrounding
+--|
+--| Kernel 
+--|   define a simple matrix (1 dimensional array) that describes 
+--|   how to modify a certain pixel based on the ones around it. 
+--|   The GIMP documentation does a great job at explaining this. 
 data Processor 
   = PointProcessor 
     { name :: String 
@@ -90,9 +107,11 @@ foreign import ppFunctionWrapper
   -> Array String
   -> Effect (Array Int)
 
+--| Used in a PointProcessor. This function returns the pixel on the given
+--| relative position
 getPixelRelative :: ProcessPoint -> Point -> Effect RGBA
 getPixelRelative pp p = do 
-  rgba <- ppFunctionWrapper pp "getPixelRelative" [show p.x, show p.y]
+  rgba <- ppFunctionWrapper pp "getPixelRelative" [toInt p.x, toInt p.y]
   pure 
     { red: fromMaybe 0 $ index rgba 0
     , green: fromMaybe 0 $ index rgba 1
@@ -100,9 +119,10 @@ getPixelRelative pp p = do
     , alpha: fromMaybe 0 $ index rgba 3
     }
 
+--| Used in a PointProcessor. Gets the current pixel.
 getPixel:: ProcessPoint -> Point -> Effect RGBA
 getPixel pp p = do 
-  rgba <- ppFunctionWrapper pp "getPixel" [show p.x, show p.y]
+  rgba <- ppFunctionWrapper pp "getPixel" [toInt p.x, toInt p.y]
   pure 
     { red: fromMaybe 0 $ index rgba 0
     , green: fromMaybe 0 $ index rgba 1
@@ -110,32 +130,36 @@ getPixel pp p = do
     , alpha: fromMaybe 0 $ index rgba 3
     }
 
+--| Used in a PointProcessor. Sets the pixel on the given relative position
 putPixelRelative :: ProcessPoint -> Point -> RGBA -> Effect Unit
 putPixelRelative pp p rgba = do
   _ <- ppFunctionWrapper pp "putPixelRelative" 
-    [ show p.x
-    , show p.y
-    , show rgba.red
-    , show rgba.green
-    , show rgba.blue
-    , show rgba.alpha
+    [ toInt p.x
+    , toInt p.y
+    , toInt rgba.red
+    , toInt rgba.green
+    , toInt rgba.blue
+    , toInt rgba.alpha
     ]
   pure unit
 
+--| Used in a PointProcessor. Sets the current pixel
 putPixel :: ProcessPoint -> Point -> RGBA -> Effect Unit
 putPixel pp p rgba = do
   _ <- ppFunctionWrapper pp "putPixel" 
-    [ show p.x
-    , show p.y
-    , show rgba.red
-    , show rgba.green
-    , show rgba.blue
-    , show rgba.alpha
+    [ toInt p.x
+    , toInt p.y
+    , toInt rgba.red
+    , toInt rgba.green
+    , toInt rgba.blue
+    , toInt rgba.alpha
     ]
   pure unit
 
 foreign import processKernelImpl :: String -> Array Int -> Effect Unit
 
+--| Used with a Processor it registers a new filter with a given name.
+--| The filter could be called via the Filter CustomFilter ADT
 register :: Processor -> Effect Unit
 register (PointProcessor { name, function }) = 
   registerImpl name
@@ -145,6 +169,7 @@ register (PointProcessor { name, function }) =
 register (Kernel { name, matrix }) =
   processKernelImpl name matrix
 
+--| Blending Modes for a new layer. That can be used in a NewLayer rendering
 data Blender 
   = Normal
   | Multiply
@@ -170,13 +195,16 @@ instance showBlender :: Show Blender where
     Lighten -> "lighten"
     Darken -> "darken"
 
+--| Size is used for two filters Resize and Crop
 type Size =
   { width :: Int
   , height :: Int
   }
 
+--| Built in filter functions that can be used in render function.
 data Filter
   = Brightness Int
+  | Revert
   | Contrast Int
   | Sepia Int
   | Saturation Int
@@ -195,64 +223,80 @@ data Filter
   | Curves (Array Channels) CurvePoints
   | CustomFilter String 
 
+toInt :: Int -> String
+toInt i = "parseInt(" <> show i <> ")"
+
+toString :: String -> String
+toString s = "'" <> s <> "'"
+
+toFloat :: Number -> String
+toFloat f = "parseFloat(" <> show f <> ")"
+
+toArray :: forall a. Show a => Array a -> String
+toArray a = "[" <> (joinWith "," $ map show a) <> "]"
+
 convertFilterArray :: Filter -> Array String
 convertFilterArray = case _ of
-  Brightness i -> ["brightness", show i]
-  Contrast i -> ["contrast", show i]
-  Sepia i -> ["sepia", show i]
-  Saturation i -> ["saturation", show i]
-  Exposure i -> ["exposure", show i]
-  Gamma n -> ["gamma", show n]
+  Revert -> ["revert"]
+  Brightness i -> ["brightness", toInt i]
+  Contrast i -> ["contrast", toInt i]
+  Sepia i -> ["sepia", toInt i]
+  Saturation i -> ["saturation", toInt i]
+  Exposure i -> ["exposure", toInt i]
+  Gamma n -> ["gamma", toFloat n]
   Greyscale -> ["greyscale"]
   Invert -> ["invert"]
-  Hue i -> ["hue", show i]
-  Noise i -> ["noise", show i]
-  Vibrance i -> ["vibrance", show i]
-  Resize s -> ["resize", show s.width, show s.height]
-  Crop s -> ["crop", show s.width, show s.height]
+  Hue i -> ["hue", toInt i]
+  Noise i -> ["noise", toInt i]
+  Vibrance i -> ["vibrance", toInt i]
+  Resize s -> ["resize", toInt s.width, toInt s.height]
+  Crop s -> ["crop", toInt s.width, toInt s.height]
   Curves channels curve -> 
     ["curves"
-    , (joinWith "" $ map show channels)
-    ] 
-    <> map show
-    [ curve.p0.x
-    , curve.p0.y
-    , curve.p1.x
-    , curve.p1.y
-    , curve.p2.x
-    , curve.p2.y
-    , curve.p3.x
-    , curve.p3.y
+    , toString (joinWith "" $ map show channels)
+    , toArray 
+      [ curve.p0.x
+      , curve.p0.y
+      ]
+    , toArray
+      [ curve.p1.x
+      , curve.p1.y
+      ]
+    , toArray
+      [ curve.p2.x
+      , curve.p2.y
+      ]
+    , toArray
+      [ curve.p3.x
+      , curve.p3.y
+      ]
     ]
   Channels { red:r, green:g, blue:b } -> 
-    ["channels"
-    , show r
-    , show g
-    , show b 
-    ]
+    ["channels"] <> map toInt [ r, g, b ]
   Colorize { red, green, blue } strength -> 
-    ["colorize"
-    , show red
-    , show green
-    , show blue
-    , show strength
-    ]
+    ["colorize"] <> map toInt [ red, green, blue, strength ]
   ColorizeHex hex strength ->
     ["colorize"
-    , hex
-    , show strength
+    , toString hex
+    , toInt strength
     ]
   CustomFilter name -> 
     [ name ] 
 
+--| Layer Options are used in a New layer to do adjustments before 
+--| modifing the new layer with filters
 data LayerOption
   = BlendingMode Blender
   | FillColor String
   | CopyParent 
   | Opacity Int
 
+--| Layer types that can be rendered
+--| MainLayer is the Image itself
+--| NewLayer is a new layer that can be arranged with LayerOptions 
+--| and modified by filters like the main layer
 data Layer 
-  = Main 
+  = MainLayer
     { elementId :: String
     , filters :: Array Filter
     }
@@ -264,16 +308,17 @@ data Layer
 
 convertLayerOptionArray :: LayerOption -> Array String
 convertLayerOptionArray = case _ of
-  BlendingMode b -> ["setBlendingMode", show b]
-  FillColor c -> ["fillColor", c]
+  BlendingMode b -> ["setBlendingMode", toString $ show b]
+  FillColor c -> ["fillColor", toString c]
   CopyParent -> ["copyParent"]
-  Opacity i -> ["opacity", show i]
+  Opacity i -> ["opacity", toInt i]
 
 foreign import functionWrapper :: String -> Array (Array String) -> EffectFnAff Unit
 foreign import newLayerImpl :: String -> Array (Array String) -> Array (Array String) -> EffectFnAff Unit
 
+--| Render the filters to a given layer
 render :: Layer -> Aff Unit
-render (Main { elementId, filters }) = 
+render (MainLayer { elementId, filters }) = 
   fromEffectFnAff $ functionWrapper elementId $ map convertFilterArray filters
 render (NewLayer { elementId, filters, layerOptions }) = 
   fromEffectFnAff $ newLayerImpl elementId (map convertLayerOptionArray layerOptions) (map convertFilterArray filters)
