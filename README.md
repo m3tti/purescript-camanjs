@@ -14,7 +14,7 @@ You have to make sure camanjs.full has to be present in your distribution
 main :: Effect Unit
 main = launchAff $ do
     _ <- render 
-      $ Main 
+      $ MainLayer 
         { elementId: "#lena" -- this is the canvas element id
         , filters: 
           [ Brightness 95 
