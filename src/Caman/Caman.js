@@ -12,8 +12,6 @@ var constructFn = function(c) {
   return function(i) {
     var fn = i[0];
     var args = i.slice(1).map(eval);
-    console.log(fn)
-    console.log(args)
 
     if (fn === "channels") {
       c[fn].apply(c, [{ red: args[0], green: args[1], blue: args[2] }])
@@ -31,7 +29,6 @@ exports.processKernelImpl = function(name) {
       var c = Caman.Filter.register(name, function() {
         this.processKernel(name + "K", matrix.map(parseInt));
       });
-      console.log(c);
     }
   }
 }
